@@ -1,19 +1,24 @@
 //USED NODEMON TO AUTO START THE INDEX.JS WHENEVER ANY CHANGES OCCUR (added nodemon in package.json)
-
 const express = require('express'); //initialize express
-const socketio = require('socket.io');  //initialize socketio
-const http = require('http');   //initialize http
+const app = express();  //initialize express
+const bodyParser = require('body-parser');
 const cors = require('cors');
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);  //instance of socketio and pass in server to make this socketio server working
+const hostname = '127.0.0.1';
+const router = express.Router()
 
-const {addUser, removeUser, getUser, getUserInRoom} = require('./users.js');
+app.use(router);    //using the router page through express
+app.use(bodyParser.json()); // To deserialize body from request as json
+app.use(bodyParser.urlencoded({ extended: false })); // To deserialize body from request
+app.use(cors());  //using the cors for cross origin support while deploying online
+
+const {addUser, removeUser, getUser, getUserInRoom} = require('./db/users.js');
 
 const PORT = process.env.PORT || 5000;  //use the process.env.PORT for later deployment or currently use port 5000 on local
 
-const router = require('./router'); //routed the router.js page//Also imported/require from router.js using export module
 
-const app = express();  //initialize express
-const server = http.createServer(app);  //initializing server using express app
-const io = socketio(server);    //instance of socketio and pass in server to make this socketio server working
+
 
 io.on('connection', (socket)=>{
     //console.log('We have a new connection!!');
@@ -56,7 +61,6 @@ io.on('connection', (socket)=>{
     })
 });
 
-app.use(router);    //using the router page through express
-app.use(cors());  //using the cors for cross origin support while deploying online
 
-server.listen(PORT, ()=> console.log(`Server has started on port ${PORT}`));
+
+server.listen(PORT,hostname, ()=> console.log(`Server has started on port ${PORT}`));
