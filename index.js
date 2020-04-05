@@ -9,7 +9,7 @@ const router = express.Router()
 
 
 app.use(bodyParser.json()); // To deserialize body from request as json
-app.use(bodyParser.urlencoded({ extended: true  })); // To deserialize body from request
+app.use(bodyParser.urlencoded({ extended: false  })); // To deserialize body from request
 app.use(cors());  //using the cors for cross origin support while deploying online
 
 
@@ -21,55 +21,43 @@ let USER = []
 let room_db= []
 let online_user = []
 
+
 router.post('/userProfile',function(req, res){
+
+    let USER_PROFILE = {
+            alias: req.body.alias,
+            age: req.body.age,
+            hobby: req.body.hobby,
+            interest: req.body.interest,
+            gender: req.body.gender,
+            picture: req.body.picture
+    }
+    console.log(USER_PROFILE)
     if(req.body.email){
         let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
         if(pos === -1){
-            let USER_PROFILE = {name:"",age:"",hobby:[], interest: "", gender: "", picture: ""}
+
             USER.push({email:req.body.email,USER_PROFILE})
             return res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
         }
         else{
-            return res.status(200).send({success: false, msg: req.body.email + " is already in our database"})
+            USER[pos].USER_PROFILE = USER_PROFILE
+            return res.status(200).send({success: true, msg: req.body.email + " is already modified "})
         }
     }
     return res.status(200).send({success: false, msg:"Bad request"})
 })
 
 router.get('/userProfile',function(req, res){
-    let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
+    let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.query.email);
     if(pos === -1){
         return res.status(200).send({success: false, msg: "User is not in the database"})
     }
     else{
         return res.status(200).send({success: true, msg: USER[pos]})
     }
-
     return res.status(400).send({success: false, msg: "Bad request"})
 })
-
-router.put('/userProfile',function(req, res){
-    let USER_PROFILE = {name:"",age:"",hobby:"", interest: "", gender: "", picture: ""}
-    let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
-    if(pos === -1){
-        return res.status(200).send({success: false, msg: "User is not in the database"})
-    }
-    else{
-        USER_PROFILE = {
-            name: req.body.name,
-            age: req.body.age,
-            hobby: req.body.hobby,
-            interest: req.body.interest,
-            gender: req.body.gender,
-            picture: req.body.picture
-        }
-        USER[pos].USER_PROFILE = USER_PROFILE
-        return res.status(200).send({success: true, msg: req.body.email + " is successfully modifed your profile"})
-    }
-
-    return res.status(400).send({success: false, msg: "Bad request"})
-})
-
 
 
 io.on('connection', (socket)=>{
