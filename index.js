@@ -9,10 +9,12 @@ const hostname = '127.0.0.1';
 const router = express.Router()
 
 
-app.use(router);    //using the router page through express
 app.use(bodyParser.json()); // To deserialize body from request as json
-app.use(bodyParser.urlencoded({ extended: false })); // To deserialize body from request
+app.use(bodyParser.urlencoded({ extended: true  })); // To deserialize body from request
 app.use(cors());  //using the cors for cross origin support while deploying online
+
+
+app.use('/',router) //using the router page through express
 
 const {addUser, removeUser, getUser, getUserInRoom} = require('./db/users.js');
 
@@ -22,6 +24,20 @@ let USER = []
 let room_db= []
 let online_user = []
 
+router.post('/userProfile',function(req, res){
+    if(req.body.email){
+        let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
+        if(pos === -1){
+            let USER_PROFILE = {name:"",age:"",hobby:[], interest: "", gender: "", picture: ""}
+            USER.push({email:req.body.email,USER_PROFILE})
+            return res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
+        }
+        else{
+            return res.status(200).send({success: false, msg: req.body.email + " is already in our database"})
+        }
+    }
+    return res.status(200).send({success: false, msg:"Bad request"})
+})
 
 router.get('/userProfile',function(req, res){
     let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
