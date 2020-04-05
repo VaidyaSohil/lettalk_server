@@ -18,8 +18,6 @@ app.use('/',router) //using the router page through express
 
 const {addUser, removeUser, getUser, getUserInRoom} = require('./db/users.js');
 
-const PORT = process.env.PORT || 5000;  //use the process.env.PORT for later deployment or currently use port 5000 on local
-
 let USER = []
 let room_db= []
 let online_user = []
@@ -117,5 +115,7 @@ io.on('connection', (socket)=>{
 });
 
 
+
+var PORT = process.env.PORT || 5000;  //use the process.env.PORT for later deployment or currently use port 5000 on local
 
 server.listen(PORT,hostname, ()=> console.log(`Server has started on port ${PORT}`));
