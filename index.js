@@ -8,6 +8,7 @@ const io = require('socket.io')(server);  //instance of socketio and pass in ser
 const hostname = '127.0.0.1';
 const router = express.Router()
 
+
 app.use(router);    //using the router page through express
 app.use(bodyParser.json()); // To deserialize body from request as json
 app.use(bodyParser.urlencoded({ extended: false })); // To deserialize body from request
@@ -17,6 +18,44 @@ const {addUser, removeUser, getUser, getUserInRoom} = require('./db/users.js');
 
 const PORT = process.env.PORT || 5000;  //use the process.env.PORT for later deployment or currently use port 5000 on local
 
+let USER = []
+let room_db= []
+let online_user = []
+
+
+router.get('/userProfile',function(req, res){
+    let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
+    if(pos === -1){
+        return res.status(200).send({success: false, msg: "User is not in the database"})
+    }
+    else{
+        return res.status(200).send({success: true, msg: USER[pos]})
+    }
+
+    return res.status(400).send({success: false, msg: "Bad request"})
+})
+
+router.put('/userProfile',function(req, res){
+    let USER_PROFILE = {name:"",age:"",hobby:"", interest: "", gender: "", picture: ""}
+    let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
+    if(pos === -1){
+        return res.status(200).send({success: false, msg: "User is not in the database"})
+    }
+    else{
+        USER_PROFILE = {
+            name: req.body.name,
+            age: req.body.age,
+            hobby: req.body.hobby,
+            interest: req.body.interest,
+            gender: req.body.gender,
+            picture: req.body.picture
+        }
+        USER[pos].USER_PROFILE = USER_PROFILE
+        return res.status(200).send({success: true, msg: req.body.email + " is successfully modifed your profile"})
+    }
+
+    return res.status(400).send({success: false, msg: "Bad request"})
+})
 
 
 
