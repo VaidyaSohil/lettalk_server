@@ -5,7 +5,6 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);  //instance of socketio and pass in server to make this socketio server working
-const hostname = '127.0.0.1';
 const router = express.Router()
 
 
@@ -118,4 +117,4 @@ io.on('connection', (socket)=>{
 
 var PORT = process.env.PORT || 5000;  //use the process.env.PORT for later deployment or currently use port 5000 on local
 
-server.listen(PORT,hostname, ()=> console.log(`Server has started on port ${PORT}`));
+server.listen(PORT, ()=> console.log(`Server has started on port ${PORT}`));
