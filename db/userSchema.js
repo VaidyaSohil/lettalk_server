@@ -1,7 +1,26 @@
 //This is the database for now with functions to add, remove, get and get users in a room
 //users is a list that stores the information of the user: id, name, room
-const users = [];
 
+var mongoose = require('mongoose');
+var Schema = mongoose.Schema;
+
+var userSchema = new Schema({
+    email:  {type: String, unique: true, required: true},
+    userProfile:{
+        alias: {type: String},
+        age: { type:Number},
+        hobby: {type: Array},
+        gender:{type:String},
+        picture: { type:String}
+    }
+
+});
+
+var User = mongoose.model('users', userSchema);
+module.exports = User
+
+
+/*
 const addUser = ({id, name, room}) => { //function to add users if unique and return the user
     name = name.trim().toLowerCase();   //eliminate white space and make it lower case [eg. Sohil Vaidya => sohilvaidya]
     room = room.trim().toLowerCase();
@@ -32,3 +51,5 @@ const getUserInRoom = (room) => users.filter((user)=> user.room === room);
 
 //export this module in order to use these functions in the required page (index)
 module.exports = {addUser, removeUser, getUser, getUserInRoom};
+
+*/

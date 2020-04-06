@@ -6,7 +6,12 @@ const cors = require('cors');
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);  //instance of socketio and pass in server to make this socketio server working
 const router = express.Router()
+const mongoose = require('mongoose');
+const User = require('./db/userSchema')
+require('dotenv').config()
 
+mongoose.connect(`mongodb+srv://${process.env.USER_NAME_DB}:${process.env.PASSWORD_DB}@cluster0-lszdj.mongodb.net/test?retryWrites=true&w=majority`)
+var db = mongoose.connection;
 
 app.use(bodyParser.json()); // To deserialize body from request as json
 app.use(bodyParser.urlencoded({ extended: false  })); // To deserialize body from request
@@ -15,9 +20,9 @@ app.use(cors());  //using the cors for cross origin support while deploying onli
 
 app.use('/',router) //using the router page through express
 
-const {addUser, removeUser, getUser, getUserInRoom} = require('./db/users.js');
 
-let USER = []
+const {addUser, removeUser, getUser, getUserInRoom} = require('./db/userSchema.js');
+
 let room_db= []
 let online_user = []
 
@@ -32,31 +37,47 @@ router.post('/userProfile',function(req, res){
             gender: req.body.gender,
             picture: req.body.picture
     }
-    console.log(USER_PROFILE)
-    if(req.body.email){
-        let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.body.email);
-        if(pos === -1){
 
-            USER.push({email:req.body.email,USER_PROFILE})
-            return res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
+    //Looking for that email
+    User.findOne({email:req.body.email},function(err,obj) {
+        if (err) {
+            console.log(err)
+            res.status(400).send({success: false, msg: "Error"})
         }
-        else{
-            USER[pos].USER_PROFILE = USER_PROFILE
-            return res.status(200).send({success: true, msg: req.body.email + " is already modified "})
+        else if (obj) {
+            //Modify it only
+            User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE})
+            res.status(200).send({success: true, msg: req.body.email + " is modified to our database"})
+        } else {
+            var user = new User({email: req.body.email, userProfile: obj.userProfile})
+            user.save(function (err, res) {
+                if (err) {
+                    console.error(err);
+                    res.status(400).send({success: false, msg: "Error"})
+                }
+                else {
+                    res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
+                }
+            })
         }
-    }
-    return res.status(200).send({success: false, msg:"Bad request"})
+    })
+
 })
 
 router.get('/userProfile',function(req, res){
-    let pos = USER.map(function(e) { return e["email"]; }).indexOf(req.query.email);
-    if(pos === -1){
-        return res.status(200).send({success: false, msg: "User is not in the database"})
-    }
-    else{
-        return res.status(200).send({success: true, msg: USER[pos]})
-    }
-    return res.status(400).send({success: false, msg: "Bad request"})
+    console.log(req.query.email)
+    User.findOne({email:req.query.email},function(err,obj) {
+        if(err) {console.log(err)
+            return res.status(400).send({success: false, msg: "Bad request"})}
+        else if(res){
+            console.log(obj.userProfile)
+            return res.status(200).send({success: true, msg: obj.userProfile})
+        }
+        else{
+            return res.status(200).send({success: false, msg: "No result"})
+        }
+    })
+
 })
 
 
@@ -66,7 +87,7 @@ io.on('connection', (socket)=>{
     socket.on('join', ({name, room}, callback)=>{   //error handle function callback in Chat.js (socket.emit)
         const {error, user} = addUser({id: socket.id, name, room});//since addUser only return 2 things (error, user) //addUser takes an object with 3 inputs
 
-        if(error) return callback(error);   //if in case of error (ie. username is already taken, then callback that error which is defined in users.js -> addUser function)
+        if(error) return callback(error);   //if in case of error (ie. username is already taken, then callback that error which is defined in userSchema.js -> addUser function)
 
         //Else (when there's no error) do the following: Join the user in the room and Display message on the chat box
 
