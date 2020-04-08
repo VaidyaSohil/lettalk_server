@@ -8,7 +8,10 @@ const io = require('socket.io')(server);  //instance of socketio and pass in ser
 const router = express.Router()
 const mongoose = require('mongoose');
 const User = require('./db/userSchema')
+const Room = require('./db/roomSchema')
 require('dotenv').config()
+var uniqid = require('uniqid');
+
 
 mongoose.connect(`mongodb+srv://${process.env.USER_NAME_DB}:${process.env.PASSWORD_DB}@cluster0-lszdj.mongodb.net/test?retryWrites=true&w=majority`)
 var db = mongoose.connection;
@@ -21,10 +24,7 @@ app.use(cors());  //using the cors for cross origin support while deploying onli
 app.use('/',router) //using the router page through express
 
 
-const {addUser, removeUser, getUser, getUserInRoom} = require('./db/userSchema.js');
-
-let room_db= []
-let online_user = []
+const {addUser, removeUser, getUser, getUserInRoom} = require('./db/user');
 
 
 router.post('/userProfile',function(req, res){
@@ -64,6 +64,92 @@ router.post('/userProfile',function(req, res){
 
 })
 
+/*
+ console.log("Hit this")
+            Room.findOne({},function(err,obj){
+                if(err) console.log(err)
+                else if(obj){
+                 if(obj.person.length === 2){
+                     setTimeout(function () {
+                         cb(resolve(obj.roomId), reject);
+                     }, 500)
+                 }
+                }
+                else{
+                    console.log("waiting")
+                }
+            })
+ */
+
+function matchPeople(name) {
+    return new Promise(function cb(resolve,reject)  {
+
+
+            //Look for a room, check the first one, there is no one , create a room Id and push first person in
+            Room.findOne({},function(err,obj){
+                if(err) console.log(err)
+                else if(obj){
+                    if(obj.person.length <= 2) {
+                        let userName = obj.person
+                        console.log(typeof (userName))
+                        console.log(userName)
+                        userName = userName.concat([name])
+                        console.log(userName)
+                        Room.findOneAndUpdate({roomId:obj.roomId},function(err,obj){
+                            if(err) console.log(err)
+                            if(obj) console.log(obj)
+                            else{
+                                console.log("Nothing populate here")
+                            }
+                        })
+                        resolve(obj.roomId)
+                    }
+                }
+                else {
+                    //Create a room and push this room in
+                    let roomId = uniqid()
+                    console.log(roomId)
+                    let userName = [name]
+                    userName.push()
+                    console.log("get to here")
+                    let room = new Room({roomId:roomId,person:userName})
+                    room.save()
+                    resolve(roomId)
+                }
+            })
+
+    }
+    )
+}
+router.get('/checkAvailable',function(req,res){
+    console.log(req.query)
+    Room.findOne({roomId:req.query.roomId},function(err,obj) {
+            if(err) {
+                res.status(400).send({success:false,msg:"Bad requests"})
+                console.log(err)
+            }
+            if(obj){
+                if(obj.person.length >= 2) {
+                    res.status(200).send({success: true})
+                }
+            }
+            else{
+                res.status(200).send({success:false})
+            }
+
+    })
+
+})
+router.get('/room',async function(req,res){
+    const result = await matchPeople(req.query.username)
+    console.log(result)
+    res.status(200).send({success:true,msg: result})
+})
+
+router.delete('/room',function(req,res){
+
+
+})
 router.get('/userProfile',function(req, res){
     console.log(req.query.email)
     User.findOne({email:req.query.email},function(err,obj) {
@@ -81,10 +167,13 @@ router.get('/userProfile',function(req, res){
 })
 
 
+
 io.on('connection', (socket)=>{
     //console.log('We have a new connection!!');
 
-    socket.on('join', ({name, room}, callback)=>{   //error handle function callback in Chat.js (socket.emit)
+    socket.on('join', ({name, room}, callback)=>{
+        console.log(name,room)
+        //error handle function callback in Chat.js (socket.emit)
         const {error, user} = addUser({id: socket.id, name, room});//since addUser only return 2 things (error, user) //addUser takes an object with 3 inputs
 
         if(error) return callback(error);   //if in case of error (ie. username is already taken, then callback that error which is defined in userSchema.js -> addUser function)
