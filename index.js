@@ -27,6 +27,23 @@ app.use('/',router) //using the router page through express
 const {addUser, removeUser, getUser, getUserInRoom} = require('./db/user');
 
 
+router.get('/userProfile',function(req, res){
+    console.log(req.query.email)
+
+    User.findOne({email:req.query.email},function(err,obj) {
+        if(err) {console.log(err)
+            return res.status(400).send({success: false, msg: "Bad request"})}
+        else if(obj){
+            console.log(obj.userProfile)
+            return res.status(200).send({success: true, msg: obj.userProfile})
+        }
+        else{
+            return res.status(200).send({success: false, msg: "No result"})
+        }
+    })
+
+})
+
 router.post('/userProfile',function(req, res){
 
     let USER_PROFILE = {
@@ -38,6 +55,7 @@ router.post('/userProfile',function(req, res){
             picture: req.body.picture
      }
 
+     console.log(USER_PROFILE)
     //Looking for that email
     User.findOne({email:req.body.email},function(err,obj) {
         if (err) {
@@ -46,7 +64,10 @@ router.post('/userProfile',function(req, res){
         }
         else if (obj) {
             //Modify it only
-            User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE})
+            console.log("It here")
+            User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE},{new: true},function(err,obj){
+                if(err) console.log(err)
+            })
             res.status(200).send({success: true, msg: req.body.email + " is modified to our database"})
         } else {
             console.log("New user")
@@ -140,22 +161,7 @@ router.delete('/room',function(req,res){
 
 
 })
-router.get('/userProfile',function(req, res){
-    console.log(req.query.email)
 
-    User.findOne({email:req.query.email},function(err,obj) {
-        if(err) {console.log(err)
-            return res.status(400).send({success: false, msg: "Bad request"})}
-        else if(obj){
-            console.log(obj.userProfile)
-            return res.status(200).send({success: true, msg: obj.userProfile})
-        }
-        else{
-            return res.status(200).send({success: false, msg: "No result"})
-        }
-    })
-
-})
 
 
 
