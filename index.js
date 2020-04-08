@@ -31,12 +31,12 @@ router.post('/userProfile',function(req, res){
 
     let USER_PROFILE = {
             alias: req.body.alias,
-            age: req.body.age,
-            hobby: req.body.hobby,
+            age: req.body.age ,
+            hobby: req.body.hobby ,
             interest: req.body.interest,
             gender: req.body.gender,
             picture: req.body.picture
-    }
+     }
 
     //Looking for that email
     User.findOne({email:req.body.email},function(err,obj) {
@@ -49,14 +49,19 @@ router.post('/userProfile',function(req, res){
             User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE})
             res.status(200).send({success: true, msg: req.body.email + " is modified to our database"})
         } else {
-            var user = new User({email: req.body.email, userProfile: obj.userProfile})
-            user.save(function (err, res) {
+            console.log("New user")
+            console.log(req.body.email)
+            var user = new User({email: req.body.email, userProfile: USER_PROFILE})
+            user.save(function (err, obj) {
                 if (err) {
                     console.error(err);
                     res.status(400).send({success: false, msg: "Error"})
                 }
-                else {
+                else if(obj){
                     res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
+                }
+                else{
+                    res.status(200).send({success: false, msg: req.body.email + "can't save"})
                 }
             })
         }
@@ -64,22 +69,7 @@ router.post('/userProfile',function(req, res){
 
 })
 
-/*
- console.log("Hit this")
-            Room.findOne({},function(err,obj){
-                if(err) console.log(err)
-                else if(obj){
-                 if(obj.person.length === 2){
-                     setTimeout(function () {
-                         cb(resolve(obj.roomId), reject);
-                     }, 500)
-                 }
-                }
-                else{
-                    console.log("waiting")
-                }
-            })
- */
+
 
 function matchPeople(name) {
     return new Promise(function cb(resolve,reject)  {
@@ -152,10 +142,11 @@ router.delete('/room',function(req,res){
 })
 router.get('/userProfile',function(req, res){
     console.log(req.query.email)
+
     User.findOne({email:req.query.email},function(err,obj) {
         if(err) {console.log(err)
             return res.status(400).send({success: false, msg: "Bad request"})}
-        else if(res){
+        else if(obj){
             console.log(obj.userProfile)
             return res.status(200).send({success: true, msg: obj.userProfile})
         }
