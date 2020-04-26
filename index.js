@@ -9,6 +9,7 @@ const router = express.Router()
 const mongoose = require('mongoose');
 const User = require('./db/userSchema')
 const Room = require('./db/roomSchema')
+const waitingSchema= require('./db/waitingSchema')
 require('dotenv').config()
 var uniqid = require('uniqid');
 
@@ -24,7 +25,7 @@ app.use(cors());  //using the cors for cross origin support while deploying onli
 app.use('/',router) //using the router page through express
 
 
-const {addUser, removeUser, getUser, getUserInRoom} = require('./db/user');
+const {addUser, getUser, getUserInRoom} = require('./db/user');
 
 
 router.get('/userProfile',function(req, res){
@@ -89,77 +90,160 @@ router.post('/userProfile',function(req, res){
     })
 
 })
+// [a,b,c,d]
+//[b,c,a,d]
+
+function matchAlgo(waiting,myinfo,strangerInfo){
+    let count = 0
+    let length = 1
+    //Loop through hobby array
+    //Put my hobby array here
+    //Stranger hobby array
+
+    let myHobby = myinfo.hobby.split(",").sort(), strangerHobby = strangerInfo.hobby.split(",").sort()
+
+    if(myHobby.length > strangerHobby.length){
+        for(let i = 0 ; i < strangerHobby.length; i++){
+            if(myHobby[i].toLowerCase() == strangerHobby[i].toLowerCase()){
+                count = count + 1
+            }
+        }
+        length = myHobby.length
+    }
+    else{
+        for(let i = 0 ; i < myHobby.length; i++){
+            if(myHobby[i].toLowerCase() == strangerHobby[i].toLowerCase()){
+                count = count + 1
+            }
+        }
+        if(strangerHobby.length > 0 )
+        length = strangerHobby.length
+    }
+    let percent = (count * 100/ length )
+
+    if (percent >= 50) {
+        let roomId = uniqid()
+        //Looking for my name and stranger in waiting list
+
+        waitingSchema.findOneAndUpdate({email:myinfo.email},{match_person:strangerInfo.email,percent: percent,roomId:roomId},function(err){
+            if(err) return console.log(err)
+        })
+
+        waitingSchema.findOneAndUpdate({email:strangerInfo.email},{match_person:myinfo.email,percent: percent,roomId:roomId},function(err){
+            if(err) return console.log(err)
+        })
+
+        return roomId
+    }
+    else
+        return null
+
+}
+// [{},{},{},{}]
+//person is  [{},{}]
+function waitingList(waiting,myinfo){
+
+        console.log("Go to waiting list")
+        console.log(waiting)
+        waiting.forEach(function(docs){
+            console.log("docs",docs)
+            if(docs.email != myinfo.email && docs.roomId === null){
+                let roomId = matchAlgo(waiting,myinfo,docs)
+                if(roomId !== null){
+                    waitingSchema.findOneAndUpdate({email:myinfo.email},{roomId:roomId},function(err){
+                        if(err) return console.log(err)
+                    })
+                    return roomId
+                }
+            }
+        })
 
 
+        return ""
+}
 
-function matchPeople(name) {
-    return new Promise(function cb(resolve,reject)  {
+router.get('/room', function(req,res){
+    let waitingInfo = {email:req.query.email,hobby:req.query.hobby,match_person:"",percent:"",roomId:null}
+    let checkRoom = ""
 
+    //Check if this person are no longer in queue.
+    //pos = waiting.map(function(e) {return e.email}).indexOf(req.query.email);
 
-            //Look for a room, check the first one, there is no one , create a room Id and push first person in
-            Room.findOne({},function(err,obj){
-                if(err) console.log(err)
-                else if(obj){
-                    if(obj.person.length <= 2) {
-                        let userName = obj.person
-                        console.log(typeof (userName))
-                        console.log(userName)
-                        userName = userName.concat([name])
-                        console.log(userName)
-                        Room.findOneAndUpdate({roomId:obj.roomId},function(err,obj){
-                            if(err) console.log(err)
-                            if(obj) console.log(obj)
-                            else{
-                                console.log("Nothing populate here")
+    waitingSchema.find({email:req.query.email},function(err,doc){
+        if(err) return console.log(err)
+        else {
+            if (doc.length == 0) {
+                let waitingDoc = new waitingSchema({
+                    email: req.query.email,
+                    hobby: req.query.hobby,
+                    match_person: "",
+                    percent: "",
+                    roomId: null
+                })
+
+                waitingDoc.save(function (err) {
+                    if (err) return console.log(err)
+                    // saved!
+                    console.log("Save")
+                })
+                //waiting.push(waitingInfo)
+                res.status(200).send({success: false, msg: "No room for you"})
+            } else {
+                let waiting = new Array()
+                waitingSchema.find({}, function (err, docs) {
+                    if (err) return console.log(err)
+                    else {
+
+                        //waiting = waiting.concat(docs)
+                        docs.forEach(function (waiting) {
+                            if (waiting.email == req.query.email) {
+                                if (waiting.roomId !== null) {
+                                    checkRoom = waiting.roomId
+                                }
                             }
                         })
-                        resolve(obj.roomId)
+
+                        if (checkRoom) {
+                            res.status(200).send({success: true, msg: checkRoom})
+                        } else {
+                            let result = waitingList(docs, req.query)
+
+                            if (result != "") {
+                                res.status(200).send({success: true, msg: result})
+                            } else {
+                                res.status(200).send({success: false, msg: "No room for you"})
+                            }
+                        }
                     }
-                }
-                else {
-                    //Create a room and push this room in
-                    let roomId = uniqid()
-                    console.log(roomId)
-                    let userName = [name]
-                    userName.push()
-                    console.log("get to here")
-                    let room = new Room({roomId:roomId,person:userName})
-                    room.save()
-                    resolve(roomId)
-                }
-            })
-
-    }
-    )
-}
-router.get('/checkAvailable',function(req,res){
-    console.log(req.query)
-    Room.findOne({roomId:req.query.roomId},function(err,obj) {
-            if(err) {
-                res.status(400).send({success:false,msg:"Bad requests"})
-                console.log(err)
+                })
             }
-            if(obj){
-                if(obj.person.length >= 2) {
-                    res.status(200).send({success: true})
-                }
-            }
-            else{
-                res.status(200).send({success:false})
-            }
-
+        }
     })
 
+
+
 })
-router.get('/room',async function(req,res){
-    const result = await matchPeople(req.query.username)
-    console.log(result)
-    res.status(200).send({success:true,msg: result})
+
+//Check available room?
+//temptRoom = [{roomId},{},{}]
+//send to this room, send to this room
+//
+router.get('/checkAvailable',function(req,res){
+     //Send to this room
 })
+
 
 router.delete('/room',function(req,res){
-
-
+    //Looking for email address for now, but will do token for security
+    //Looking if token match this room then delete for both user
+    // Say sorry for both user, I'm out of service
+    waitingSchema.deleteMany({roomId: req.body.roomId}, function (err){
+        if(err) {
+            console.log(err)
+            res.status(500).send({success: false, msg: "Service unavailable"})
+        }
+    })
+    res.status(200).send({success: true, msg: "Successfully delete room"})
 })
 
 
@@ -168,44 +252,56 @@ router.delete('/room',function(req,res){
 io.on('connection', (socket)=>{
     //console.log('We have a new connection!!');
 
-    socket.on('join', ({name, room}, callback)=>{
-        console.log(name,room)
-        //error handle function callback in Chat.js (socket.emit)
-        const {error, user} = addUser({id: socket.id, name, room});//since addUser only return 2 things (error, user) //addUser takes an object with 3 inputs
 
-        if(error) return callback(error);   //if in case of error (ie. username is already taken, then callback that error which is defined in userSchema.js -> addUser function)
+    socket.on('join', function(data){
+        console.log("name and room",data.name,data.room)
+        if(typeof (data) !== "undefined") {
+            let user = addUser( data.name, data.room)
 
-        //Else (when there's no error) do the following: Join the user in the room and Display message on the chat box
+            if (typeof (user) !== "undefined") {
+                console.log("send msg to front end")
+                socket.join(user.room); //joins a new user in that room
+                //since admin is sending message to the user we are using "emit" //emitting part is happening in the front end
+                console.log("Send msg to front end", user.name, user.room)
+                socket.emit('message', {user: 'admin', text: `${user.name}, welcome to the room ${user.room}`});
+                socket.broadcast.to(user.room).emit('message', {user: 'admin', text: `${user.name}, has joined!`}); //broadcast is used when you want to display message to everyone else beside the user who currently joined
 
-        socket.join(user.room); //joins a new user in that room
+                io.to(user.room).emit('roomData', {room: user.room, users: getUserInRoom(user.room)})   //get the users that are connected in a specific room
+            }
+        }
 
-        //since admin is sending message to the user we are using "emit" //emitting part is happening in the front end
-        socket.emit('message', {user: 'admin', text: `${user.name}, welcome to the room ${user.room}`});
-        socket.broadcast.to(user.room).emit('message', {user: 'admin', text: `${user.name}, has joined!`}); //broadcast is used when you want to display message to everyone else beside the user who currently joined
-
-        io.to(user.room).emit('roomData', {room: user.room, users: getUserInRoom(user.room)})   //get the users that are connected in a specific room
-
-        callback(); //callback at front end gets called every time but if no errors, simply not going to pass the error
     })
 
     //since user is sending back to the server, the server is expecting, thus we are using "on"
     //socket.on takes 2 params (key message [needs to save this key message in backend as frontend sends with this key message], function)
-    socket.on('sendMessage', (message, callback) => {   //arrow function takes 2 params, message and callback when an event is emitted
-        const user = getUser(socket.id);    //get user who sent that message by using the socket.id of that user
+    socket.on('sendMessage', function(data) {   //arrow function takes 2 params, message and callback when an event is emitted
 
-        io.to(user.room).emit('message', {user: user.name, text: message}); //display to the front end
+        if(typeof data !== "undefined") {
+            const user = getUser(data.name);    //get user who sent that message by using the socket.id of that user
 
-        callback(); //do something after the message is sent in the front end
+            if(typeof user !== "undefined")
+                console.log("Send message to front end",data.message)
+                io.to(user.room).emit('message', {user: user.name, text: data.message}); //display to the front end
+
+        }
+        else{
+            //Exception handling here
+        }
+
     });
 
+    /*
     socket.on('disconnect', ()=>{
         const user = removeUser(socket.id); //remove the user if disconnect
-        if(user){   //if user got disconnected, then emit a message on the front end (the specific room)
-            io.to(user.room).emit('message', {user:'admin', text: `${user.name} has left`});
-            io.to(user.room).emit('roomData', {room: user.room, users: getUserInRoom(user.room)});  //display to the front end about the current active users
-        }
+        console.log("Disconnect, remove", user)
+            if(typeof user !== "undefined") {
+                io.to(user.room).emit('message', {user: 'admin', text: `${user.name} has left`});
+                io.to(user.room).emit('roomData', {room: user.room, users: getUserInRoom(user.room)});  //display to the front end about the current active users
+            }
         //console.log('User left!!');
     })
+
+     */
 });
 
 
