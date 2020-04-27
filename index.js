@@ -29,7 +29,7 @@ const {addUser, getUser, getUserInRoom} = require('./db/user');
 
 
 router.get('/userProfile',function(req, res){
-    console.log(req.query.email)
+    console.log("email here",req.query.email)
 
     User.findOne({email:req.query.email},function(err,obj) {
         if(err) {console.log(err)
@@ -57,6 +57,9 @@ router.post('/userProfile',function(req, res){
      }
 
      console.log(USER_PROFILE)
+    if(req.body.email === null){
+        res.status(400).send({success: false, msg: "Bad request"})
+    }
     //Looking for that email
     User.findOne({email:req.body.email},function(err,obj) {
         if (err) {
@@ -132,8 +135,8 @@ function matchAlgo(waiting,myinfo,strangerInfo){
         waitingSchema.findOneAndUpdate({email:strangerInfo.email},{match_person:myinfo.email,percent: percent,roomId:roomId},function(err){
             if(err) return console.log(err)
         })
-
-        return roomId
+        let result = {roomId:roomId, percent:percent}
+        return result
     }
     else
         return null
@@ -142,18 +145,14 @@ function matchAlgo(waiting,myinfo,strangerInfo){
 // [{},{},{},{}]
 //person is  [{},{}]
 function waitingList(waiting,myinfo){
-
-        console.log("Go to waiting list")
-        console.log(waiting)
         waiting.forEach(function(docs){
-            console.log("docs",docs)
             if(docs.email != myinfo.email && docs.roomId === null){
-                let roomId = matchAlgo(waiting,myinfo,docs)
-                if(roomId !== null){
-                    waitingSchema.findOneAndUpdate({email:myinfo.email},{roomId:roomId},function(err){
+                let result = matchAlgo(waiting,myinfo,docs)
+                if(result.roomId !== null){
+                    waitingSchema.findOneAndUpdate({email:myinfo.email},{roomId:result.roomId},function(err){
                         if(err) return console.log(err)
                     })
-                    return roomId
+                    return result
                 }
             }
         })
@@ -163,8 +162,10 @@ function waitingList(waiting,myinfo){
 }
 
 router.get('/room', function(req,res){
+    if(req.query.email === null){
+        res.status(200).send({success: false, msg: "No room for you"})
+    }
     let waitingInfo = {email:req.query.email,hobby:req.query.hobby,match_person:"",percent:"",roomId:null}
-    let checkRoom = ""
 
     //Check if this person are no longer in queue.
     //pos = waiting.map(function(e) {return e.email}).indexOf(req.query.email);
@@ -184,32 +185,32 @@ router.get('/room', function(req,res){
                 waitingDoc.save(function (err) {
                     if (err) return console.log(err)
                     // saved!
-                    console.log("Save")
                 })
-                //waiting.push(waitingInfo)
                 res.status(200).send({success: false, msg: "No room for you"})
             } else {
                 let waiting = new Array()
                 waitingSchema.find({}, function (err, docs) {
                     if (err) return console.log(err)
                     else {
+                        let checkRoom = ""
+                        let percent = ""
 
-                        //waiting = waiting.concat(docs)
                         docs.forEach(function (waiting) {
                             if (waiting.email == req.query.email) {
                                 if (waiting.roomId !== null) {
                                     checkRoom = waiting.roomId
+                                    percent   = waiting.percent
                                 }
                             }
                         })
 
                         if (checkRoom) {
-                            res.status(200).send({success: true, msg: checkRoom})
+                            res.status(200).send({success: true, msg: checkRoom, percent: percent})
                         } else {
                             let result = waitingList(docs, req.query)
 
                             if (result != "") {
-                                res.status(200).send({success: true, msg: result})
+                                res.status(200).send({success: true, msg: result.roomId,percent:result.percent})
                             } else {
                                 res.status(200).send({success: false, msg: "No room for you"})
                             }
@@ -224,19 +225,13 @@ router.get('/room', function(req,res){
 
 })
 
-//Check available room?
-//temptRoom = [{roomId},{},{}]
-//send to this room, send to this room
-//
-router.get('/checkAvailable',function(req,res){
-     //Send to this room
-})
 
 
 router.delete('/room',function(req,res){
     //Looking for email address for now, but will do token for security
     //Looking if token match this room then delete for both user
     // Say sorry for both user, I'm out of service
+    console.log("Delete this room")
     waitingSchema.deleteMany({roomId: req.body.roomId}, function (err){
         if(err) {
             console.log(err)
@@ -246,7 +241,39 @@ router.delete('/room',function(req,res){
     res.status(200).send({success: true, msg: "Successfully delete room"})
 })
 
+//Check if user still active in the room, if one person exit,  return false
+router.get('/roomAvailable',function(req,res){
 
+    waitingSchema.findOne({roomId: req.query.roomId},function(err,doc){
+        if(err) {
+            console.log(err)
+            res.status(500).send({success: false, msg: "Service unavailable"})
+        }
+        else{
+            if(!doc){
+                res.status(200).send({success: false, msg: "Room is not active"})
+            }
+            else{
+                res.status(200).send({success: true, msg: "Room is active"})
+            }
+        }
+
+    })
+})
+
+
+router.get('/online',function(req,res){
+    waitingSchema.find({},function(err,docs){
+        if(err) {
+            console.log(err)
+            res.status(500).send({success: false, msg: "Service currently unavailable"})
+        }
+        else{
+            console.log("get people online:",docs.length)
+            res.status(200).send({success: true, numberOnline: docs.length})
+        }
+    })
+})
 
 
 io.on('connection', (socket)=>{
@@ -275,7 +302,7 @@ io.on('connection', (socket)=>{
     //since user is sending back to the server, the server is expecting, thus we are using "on"
     //socket.on takes 2 params (key message [needs to save this key message in backend as frontend sends with this key message], function)
     socket.on('sendMessage', function(data) {   //arrow function takes 2 params, message and callback when an event is emitted
-
+            console.log(data)
         if(typeof data !== "undefined") {
             const user = getUser(data.name);    //get user who sent that message by using the socket.id of that user
 
