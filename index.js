@@ -143,10 +143,14 @@ function matchAlgo(waiting,myinfo,strangerInfo){
 // [{},{},{},{}]
 //person is  [{},{}]
 function waitingList(waiting,myinfo){
+
         waiting.forEach(function(docs){
             if(docs.email != myinfo.email && docs.roomId === null){
                 let result = matchAlgo(waiting,myinfo,docs)
-                if(result.roomId !== null){
+                if(typeof result === null){
+                    return ""
+                }
+                else if(result.roomId !== null){
                     waitingSchema.findOneAndUpdate({email:myinfo.email},{roomId:result.roomId},function(err){
                         if(err) return console.log(err)
                     })
