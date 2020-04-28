@@ -50,7 +50,7 @@ router.post('/userProfile',function(req, res){
     let USER_PROFILE = {
             alias: req.body.alias,
             age: req.body.age ,
-            hobby: (req.body.hobby).trim() ,
+            hobby: req.body.hobby,
             interest: req.body.interest,
             gender: req.body.gender,
             picture: req.body.picture
@@ -60,38 +60,36 @@ router.post('/userProfile',function(req, res){
     if(req.body.email === null){
         res.status(400).send({success: false, msg: "Bad request"})
     }
-    //Looking for that email
-    User.findOne({email:req.body.email},function(err,obj) {
-        if (err) {
-            console.log(err)
-            res.status(400).send({success: false, msg: "Error"})
-        }
-        else if (obj) {
-            //Modify it only
-            console.log("It here")
-            User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE},{new: true},function(err,obj){
-                if(err) console.log(err)
-            })
-            res.status(200).send({success: true, msg: req.body.email + " is modified to our database"})
-        } else {
-            console.log("New user")
-            console.log(req.body.email)
-            var user = new User({email: req.body.email, userProfile: USER_PROFILE})
-            user.save(function (err, obj) {
-                if (err) {
-                    console.error(err);
-                    res.status(400).send({success: false, msg: "Error"})
-                }
-                else if(obj){
-                    res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
-                }
-                else{
-                    res.status(200).send({success: false, msg: req.body.email + "can't save"})
-                }
-            })
-        }
-    })
-
+    else {
+        //Looking for that email
+        User.findOne({email: req.body.email}, function (err, obj) {
+            if (err) {
+                console.log(err)
+                res.status(400).send({success: false, msg: "Error"})
+            } else if (obj) {
+                //Modify it only
+                console.log("It here")
+                User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE}, {new: true}, function (err, obj) {
+                    if (err) console.log(err)
+                })
+                res.status(200).send({success: true, msg: req.body.email + " is modified to our database"})
+            } else {
+                console.log("New user")
+                console.log(req.body.email)
+                var user = new User({email: req.body.email, userProfile: USER_PROFILE})
+                user.save(function (err, obj) {
+                    if (err) {
+                        console.error(err);
+                        res.status(400).send({success: false, msg: "Error"})
+                    } else if (obj) {
+                        res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
+                    } else {
+                        res.status(200).send({success: false, msg: req.body.email + "can't save"})
+                    }
+                })
+            }
+        })
+    }
 })
 // [a,b,c,d]
 //[b,c,a,d]
