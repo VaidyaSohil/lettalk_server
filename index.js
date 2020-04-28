@@ -25,7 +25,7 @@ app.use(cors());  //using the cors for cross origin support while deploying onli
 app.use('/',router) //using the router page through express
 
 
-const {addUser, getUser, getUserInRoom} = require('./db/user');
+const {addUser, getUser, getUserInRoom, removeUser} = require('./db/user');
 
 
 router.get('/userProfile',function(req, res){
@@ -231,7 +231,6 @@ router.delete('/room',function(req,res){
     //Looking for email address for now, but will do token for security
     //Looking if token match this room then delete for both user
     // Say sorry for both user, I'm out of service
-    console.log("Delete this room")
     waitingSchema.deleteMany({roomId: req.body.roomId}, function (err){
         if(err) {
             console.log(err)
@@ -269,7 +268,7 @@ router.get('/online',function(req,res){
             res.status(500).send({success: false, msg: "Service currently unavailable"})
         }
         else{
-            console.log("get people online:",docs.length)
+            //console.log("get people online:",docs.length)
             res.status(200).send({success: true, numberOnline: docs.length})
         }
     })
@@ -280,15 +279,13 @@ io.on('connection', (socket)=>{
     //console.log('We have a new connection!!');
 
 
-    socket.on('join', function(data){
-        console.log("name and room",data.name,data.room)
+    socket.on('join', (data) => {
+        console.log("name and room",socket.id,data.name,data.room)
         if(typeof (data) !== "undefined") {
-            let user = addUser( data.name, data.room)
-
+            let user = addUser( socket.id,data.name, data.room)
+            console.log("User:",user)
             if (typeof (user) !== "undefined") {
-                console.log("send msg to front end")
-                socket.join(user.room); //joins a new user in that room
-                //since admin is sending message to the user we are using "emit" //emitting part is happening in the front end
+                socket.join(user.room); // Subscribe socket to this room
                 console.log("Send msg to front end", user.name, user.room)
                 socket.emit('message', {user: 'admin', text: `${user.name}, welcome to the room ${user.room}`});
                 socket.broadcast.to(user.room).emit('message', {user: 'admin', text: `${user.name}, has joined!`}); //broadcast is used when you want to display message to everyone else beside the user who currently joined
@@ -299,13 +296,12 @@ io.on('connection', (socket)=>{
 
     })
 
-    //since user is sending back to the server, the server is expecting, thus we are using "on"
-    //socket.on takes 2 params (key message [needs to save this key message in backend as frontend sends with this key message], function)
-    socket.on('sendMessage', function(data) {   //arrow function takes 2 params, message and callback when an event is emitted
-            console.log(data)
+
+    socket.on('sendMessage', (data) => {
+        console.log("get message",data)
         if(typeof data !== "undefined") {
             const user = getUser(data.name);    //get user who sent that message by using the socket.id of that user
-
+            console.log("Send message name",user)
             if(typeof user !== "undefined")
                 console.log("Send message to front end",data.message)
                 io.to(user.room).emit('message', {user: user.name, text: data.message}); //display to the front end
@@ -317,18 +313,12 @@ io.on('connection', (socket)=>{
 
     });
 
-    /*
-    socket.on('disconnect', ()=>{
-        const user = removeUser(socket.id); //remove the user if disconnect
-        console.log("Disconnect, remove", user)
-            if(typeof user !== "undefined") {
-                io.to(user.room).emit('message', {user: 'admin', text: `${user.name} has left`});
-                io.to(user.room).emit('roomData', {room: user.room, users: getUserInRoom(user.room)});  //display to the front end about the current active users
-            }
-        //console.log('User left!!');
+
+    socket.on('disconnect', ()=> {
+        removeUser(socket.id)
+        socket.disconnect()
     })
 
-     */
 });
 
 
