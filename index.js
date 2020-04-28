@@ -147,7 +147,7 @@ function waitingList(waiting,myinfo){
         waiting.forEach(function(docs){
             if(docs.email != myinfo.email && docs.roomId === null){
                 let result = matchAlgo(waiting,myinfo,docs)
-                if(typeof result === null){
+                if(result === null){
                     return ""
                 }
                 else if(result.roomId !== null){
