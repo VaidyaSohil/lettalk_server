@@ -50,7 +50,7 @@ router.post('/userProfile',function(req, res){
     let USER_PROFILE = {
             alias: req.body.alias,
             age: req.body.age ,
-            hobby: req.body.hobby ,
+            hobby: (req.body.hobby).trim() ,
             interest: req.body.interest,
             gender: req.body.gender,
             picture: req.body.picture
