@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 const User = require('./db/userSchema')
 const Room = require('./db/roomSchema')
 const waitingSchema= require('./db/waitingSchema')
+const Rating = require('./db/ratingSchema')
 const authJwtController = require('./auth_jwt')
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
@@ -29,6 +30,9 @@ app.use('/',router) //using the router page through express
 
 const {addUser, getUser, getUserInRoom, removeUser} = require('./db/user');
 
+
+
+
 router.post('/login',function (req,res){
 
     if(typeof req.body.email == "undefined"|| typeof req.body.password == "undefined" ){
@@ -43,7 +47,7 @@ router.post('/login',function (req,res){
         else {
             var userToken = {id: result._id, email: result.email, name: result.name}
             var token = jwt.sign(userToken, process.env.SECRET_KEY);
-            res.status(200).send({success: true, token:"jwt " +token, name:result.name, email: result.email})
+            res.status(200).send({success: true, token:"jwt " +token, name:result.name, email: result.email, alias: result.userProfile.alias})
         }
 
     })
@@ -120,6 +124,83 @@ router.route('/userProfile').get(authJwtController.isAuthenticated,function(req,
 
 })
 
+
+
+router.route('/rating').get(authJwtController.isAuthenticated , function(req,res) {
+    if(typeof req.query.email === "undefined"){
+        return res.status(400).send({success: false});
+    }
+    else{
+        User.aggregate([
+            { $match : { email :   req.query.email} },
+            { $lookup:
+                    {
+                        localField: "email",
+                        from: "ratings",
+                        foreignField: "email",
+                        as: "comment"
+                    }
+            }
+        ],function(err,result) {
+
+            let count = 0
+            if(result.length === 0){
+                res.status(200).send({success: true, results: [], rating: 0})
+            }
+            else if(typeof result[0].comment !== "undefined") {
+                for (let i = 0; i < result[0].comment.length; i++) {
+                    count += parseInt(result[0].comment[i].rating, 10)
+                }
+                if (result[0].comment.length > 0)
+                    count = count / result[0].comment.length
+                res.status(200).send({success: true, results: result[0], rating: count})
+            }
+            else{
+                res.status(200).send({success: true, results: [], rating: 0})
+            }
+
+        })
+    }
+})
+
+
+router.route('/rating').post(authJwtController.isAuthenticated , function(req,res){
+
+    if(typeof req.body.match_person === "undefined"|| typeof req.body.rating === "undefined" ){
+        return res.status(400).send({success: false});
+    }
+    else{
+        User.findOne({email: req.body.match_person},function(err,result) {
+            if(err) {
+                console.log(err)
+                return res.status(500).send({success: false});
+            }
+            else if(result){
+                let rating = new Rating({
+                    email: req.body.match_person,
+                    comment: req.body.comment,
+                    rating: req.body.rating,
+                    author: req.body.author
+                })
+                rating.save(function(err,result){
+                    if(err){
+                        console.log(err)
+                        return res.status(500).send({success: false});
+                    }
+                    else{
+                        return res.status(200).send({success: true});
+                    }
+                })
+            }
+            else{
+                return res.status(400).send({success: false});
+            }
+        })
+    }
+})
+
+
+
 router.route('/userProfile').post(authJwtController.isAuthenticated,function(req, res){
 
     let USER_PROFILE = {
@@ -166,8 +247,6 @@ router.route('/userProfile').post(authJwtController.isAuthenticated,function(req
         })
     }
 })
-// [a,b,c,d]
-//[b,c,a,d]
 
 function matchAlgo(waiting,myinfo,strangerInfo){
     let count = 0
@@ -271,23 +350,24 @@ router.route('/room').get(authJwtController.isAuthenticated, function(req,res){
                     else {
                         let checkRoom = ""
                         let percent = ""
-
+                        let match_person = ""
                         docs.forEach(function (waiting) {
                             if (waiting.email == req.query.email) {
                                 if (waiting.roomId !== null) {
                                     checkRoom = waiting.roomId
                                     percent   = waiting.percent
+                                    match_person = waiting.match_person
                                 }
                             }
                         })
 
                         if (checkRoom) {
-                            res.status(200).send({success: true, msg: checkRoom, percent: percent})
+                            res.status(200).send({success: true, msg: checkRoom, percent: percent, match_person: match_person})
                         } else {
                             let result = waitingList(docs, req.query)
 
                             if (result != "") {
-                                res.status(200).send({success: true, msg: result.roomId,percent:result.percent})
+                                res.status(200).send({success: true, msg: result.roomId,percent:result.percent, match_person: result.match_person})
                             } else {
                                 res.status(200).send({success: false, msg: "No room for you"})
                             }

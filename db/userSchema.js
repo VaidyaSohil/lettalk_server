@@ -13,7 +13,7 @@ var userSchema = new Schema({
         age: { type:Number},
         hobby: {type: Array},
         gender:{type:String},
-        picture: { type:String}
+        picture: { type:String},
     }
 
 });
