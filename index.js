@@ -10,6 +10,8 @@ const mongoose = require('mongoose');
 const User = require('./db/userSchema')
 const Room = require('./db/roomSchema')
 const waitingSchema= require('./db/waitingSchema')
+const authJwtController = require('./auth_jwt')
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 var uniqid = require('uniqid');
 
@@ -27,8 +29,81 @@ app.use('/',router) //using the router page through express
 
 const {addUser, getUser, getUserInRoom, removeUser} = require('./db/user');
 
+router.post('/login',function (req,res){
 
-router.get('/userProfile',function(req, res){
+    if(typeof req.body.email == "undefined"|| typeof req.body.password == "undefined" ){
+        return res.status(401).send({success: false, msg: 'Please input username or passwpord'});
+    }
+    var password = req.body.password
+    User.findOne({email: req.body.email,password: password},function(err,result){
+
+        if (err) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
+
+        if(!result) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
+        else {
+            var userToken = {id: result._id, email: result.email, name: result.name}
+            var token = jwt.sign(userToken, process.env.SECRET_KEY);
+            res.status(200).send({success: true, token:"jwt " +token, name:result.name, email: result.email})
+        }
+
+    })
+})
+
+router.get('/checkValidEmail',function(req,res) {
+    User.findOne({email: req.query.email}, function (err, obj) {
+        if (err) {
+            console.log(err)
+            res.status(400).send({success: false, msg: "Error"})
+        } else if (obj) {
+            res.status(200).send({success: false, msg: req.query.email + "Sorry, this user already exists"})
+        } else {
+            res.status(200).send({success: true})
+        }
+    })
+})
+router.post('/register',function(req,res){
+    //req.body.email, name,password,alias,age,hobby
+    //Looking to see if email already in database
+    console.log(req.body)
+    if(typeof req.body.email === "undefined" || typeof req.body.password === "undefined" || typeof  req.body.name === "undefined"){
+        res.status(400).send({success: false, msg: "Error"})
+    }
+    else {
+        let USER_PROFILE = {
+            alias: req.body.alias,
+            age: req.body.age,
+            hobby: req.body.hobby,
+            gender: req.body.gender,
+            picture: req.body.picture
+        }
+
+
+        User.findOne({email: req.body.email}, function (err, obj) {
+            if (err) {
+                console.log(err)
+                res.status(400).send({success: false, msg: "Error"})
+            } else if (obj) {
+                res.status(200).send({success: false, msg: req.body.email + "Sorry, this user already exists"})
+            } else {
+
+                var user = new User({email: req.body.email, password: req.body.password, name: req.body.name, userProfile: USER_PROFILE})
+                user.save(function (err, obj) {
+                    if (err) {
+                        console.error(err);
+                        res.status(400).send({success: false, msg: "Error"})
+                    } else if (obj) {
+                        res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
+                    } else {
+                        res.status(200).send({success: false, msg: req.body.email + "can't save"})
+                    }
+                })
+            }
+        })
+    }
+})
+
+router.route('/userProfile').get(authJwtController.isAuthenticated,function(req, res){
+
     console.log("email here",req.query.email)
 
     User.findOne({email:req.query.email},function(err,obj) {
@@ -45,7 +120,7 @@ router.get('/userProfile',function(req, res){
 
 })
 
-router.post('/userProfile',function(req, res){
+router.route('/userProfile').post(authJwtController.isAuthenticated,function(req, res){
 
     let USER_PROFILE = {
             alias: req.body.alias,
@@ -163,7 +238,7 @@ function waitingList(waiting,myinfo){
         return ""
 }
 
-router.get('/room', function(req,res){
+router.route('/room').get(authJwtController.isAuthenticated, function(req,res){
     if(req.query.email === null){
         res.status(200).send({success: false, msg: "No room for you"})
     }
@@ -229,7 +304,7 @@ router.get('/room', function(req,res){
 
 
 
-router.delete('/room',function(req,res){
+router.route('/room').delete(authJwtController.isAuthenticated,function(req,res){
     //Looking for email address for now, but will do token for security
     //Looking if token match this room then delete for both user
     // Say sorry for both user, I'm out of service
