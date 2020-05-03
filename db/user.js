@@ -41,7 +41,6 @@ function getUser(name){
 }
 const removeUser = (id) =>{
     //Update new user but not that one+
-    console.log("Remove user and room")
     let index = users_room.findIndex(x => x.id === id);
     if(index !== - 1) {
         users_room.splice(index, 1)

@@ -12,6 +12,9 @@ const Room = require('./db/roomSchema')
 const waitingSchema= require('./db/waitingSchema')
 const Rating = require('./db/ratingSchema')
 const authJwtController = require('./auth_jwt')
+const {OAuth2Client} = require('google-auth-library');
+
+const client = new OAuth2Client(process.env.CLIENT_ID);
 
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
@@ -31,8 +34,16 @@ app.use('/',router) //using the router page through express
 
 const {addUser, getUser, getUserInRoom, removeUser} = require('./db/user');
 
+async function verify(token) {
+    const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: process.env.CLIENT_ID,  // Specify the CLIENT_ID of the app that accesses the backend
+        // Or, if multiple clients access the backend:
+        //[CLIENT_ID_1, CLIENT_ID_2, CLIENT_ID_3]
+    });
+}
+
 function setOnline(){
-    console.log("Call set online 5 seconds")
     // if date - last seen > 10 minutes , set isOnline equals to false
     let isUserOnline = []
     User.find({},function(err,result){
@@ -71,30 +82,78 @@ setInterval(function(){
 
 router.post('/login',function (req,res){
 
-    if(typeof req.body.email == "undefined"|| typeof req.body.password == "undefined" ){
+    if(typeof req.body.email == "undefined"){
         return res.status(401).send({success: false, msg: 'Please input username or passwpord'});
     }
-    var password = req.body.password
-    User.findOne({email: req.body.email,password: password},function(err,result){
+    else if(typeof req.body.token !== "undefined"){
+        console.log("Check google login")
+        verify(req.body.token).then(() => {
+                User.findOne({email: req.body.email}, function (err, result) {
+                    if (err) {
+                        console.log(err)
+                    } else if (result) {
+                        console.log(result)
+                        var userToken = {id: result._id, email: result.email}
+                        var token = jwt.sign(userToken, process.env.SECRET_KEY);
+                        res.status(200).send({
+                            success: true,
+                            token: "jwt " + token,
+                            name:  result.name ,
+                            email: result.email,
+                            alias:  result.userProfile["alias"]
+                        })
+                    }
+                    else{
 
-        if (err) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
+                        let user = new User({email: req.body.email,isOnline:true})
+                        user.save(function(err,result){
+                            if(err){
+                                console.log(err)
+                                return res.status(401).send({success: false, msg: 'Please input username or passwpord'});
+                            }
+                            else{
+                                var userToken = {id: result._id, email: result.email}
+                                var token = jwt.sign(userToken, process.env.SECRET_KEY);
 
-        if(!result) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
-        else {
-            User.findOneAndUpdate({email:result.email},{isOnline:true},{new: true}, function(err,result){
-                if(err){
-                    console.log(err)
-                }
-                else if(result){
+                                return res.status(200).send({success: true,  token: "jwt " + token,  email: result.email});
+                            }
+                        })
+                    }
+                })
+            }).
+        catch(()=>{
+            console.error()
+            return res.status(401).send({success: false, msg: 'Please input username or passwpord'});
+        });
+     }
+    else  if(typeof req.body.password !== "undefined"){
+        var password = req.body.password
+        User.findOne({email: req.body.email, password: password}, function (err, result) {
 
-                }
-            })
-            var userToken = {id: result._id, email: result.email, name: result.name}
-            var token = jwt.sign(userToken, process.env.SECRET_KEY);
-            res.status(200).send({success: true, token:"jwt " +token, name:result.name, email: result.email, alias: result.userProfile.alias})
-        }
+            if (err) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
 
-    })
+            if (!result) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
+            else {
+                User.findOneAndUpdate({email: result.email}, {isOnline: true}, {new: true}, function (err, result) {
+                    if (err) {
+                        console.log(err)
+                    } else if (result) {
+
+                    }
+                })
+                var userToken = {id: result._id, email: result.email}
+                var token = jwt.sign(userToken, process.env.SECRET_KEY);
+                res.status(200).send({
+                    success: true,
+                    token: "jwt " + token,
+                    name: result.name,
+                    email: result.email,
+                    alias: result.userProfile.alias
+                })
+            }
+
+        })
+    }
 })
 
 router.route('/logout').post(authJwtController.isAuthenticated,function(req, res){
@@ -520,7 +579,6 @@ router.get('/online',function(req,res){
     // date.now - lastseen = 5 minutes
     //Run this script every 5 minutes
     // Another people will send check in
-    console.log("check online")
     User.find({ isOnline: true},function(err,docs){
         if(err) {
             console.log(err)
