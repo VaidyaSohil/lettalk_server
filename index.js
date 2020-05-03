@@ -12,6 +12,7 @@ const Room = require('./db/roomSchema')
 const waitingSchema= require('./db/waitingSchema')
 const Rating = require('./db/ratingSchema')
 const authJwtController = require('./auth_jwt')
+
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
 var uniqid = require('uniqid');
@@ -45,12 +46,36 @@ router.post('/login',function (req,res){
 
         if(!result) res.status(401).send({success: false, msg: 'Authentication failed. Wrong password.'});
         else {
+            User.findOneAndUpdate({email:result.email},{isOnline:true},{new: true}, function(err,result){
+                if(err){
+                    console.log(err)
+                }
+                else if(result){
+
+                }
+            })
             var userToken = {id: result._id, email: result.email, name: result.name}
             var token = jwt.sign(userToken, process.env.SECRET_KEY);
             res.status(200).send({success: true, token:"jwt " +token, name:result.name, email: result.email, alias: result.userProfile.alias})
         }
 
     })
+})
+
+router.route('/logout').post(authJwtController.isAuthenticated,function(req, res){
+
+    User.findOneAndUpdate({email:req.body.email},{isOnline:false},{new: true},function(err,result){
+        if(err){
+            console.log(err)
+
+        }
+        else if(result){
+            console.log(result)
+        }
+
+    })
+
+    res.status(200).send({success: true})
 })
 
 router.get('/checkValidEmail',function(req,res) {
@@ -78,7 +103,8 @@ router.post('/register',function(req,res){
             age: req.body.age,
             hobby: req.body.hobby,
             gender: req.body.gender,
-            picture: req.body.picture
+            picture: req.body.picture,
+            description: req.body.description
         }
 
 
@@ -96,6 +122,7 @@ router.post('/register',function(req,res){
                         console.error(err);
                         res.status(400).send({success: false, msg: "Error"})
                     } else if (obj) {
+
                         res.status(200).send({success: true, msg: req.body.email + " is added to our database"})
                     } else {
                         res.status(200).send({success: false, msg: req.body.email + "can't save"})
@@ -209,7 +236,8 @@ router.route('/userProfile').post(authJwtController.isAuthenticated,function(req
             hobby: req.body.hobby,
             interest: req.body.interest,
             gender: req.body.gender,
-            picture: req.body.picture
+            picture: req.body.picture,
+            description: req.body.description
      }
 
      console.log(USER_PROFILE)
@@ -384,6 +412,7 @@ router.route('/room').get(authJwtController.isAuthenticated, function(req,res){
 
 
 
+
 router.route('/room').post(authJwtController.isAuthenticated,function(req,res){
     //Looking for email address for now, but will do token for security
     //Looking if token match this room then delete for both user
@@ -425,15 +454,23 @@ router.get('/roomAvailable',function(req,res){
 })
 
 
+
 router.get('/online',function(req,res){
-    waitingSchema.find({},function(err,docs){
+
+    User.find({isOnline:true},function(err,docs){
         if(err) {
             console.log(err)
             res.status(500).send({success: false, msg: "Service currently unavailable"})
         }
         else{
+            //Now scroll through that person
+            let users = []
+            docs.map((item)=>{
+                users.push(item.userProfile)
+            })
+            console.log("Documentation",)
             //console.log("get people online:",docs.length)
-            res.status(200).send({success: true, numberOnline: docs.length})
+            res.status(200).send({success: true, numberOnline: docs.length, userProfile: users})
         }
     })
 })

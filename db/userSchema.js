@@ -8,12 +8,14 @@ var userSchema = new Schema({
     email:  {type: String, unique: true, required: true},
     name: {type: String, required: true},
     password: {type: String, required: true},
+    isOnline: {type:Boolean , default: false},
     userProfile:{
         alias: {type: String},
         age: { type:Number},
         hobby: {type: Array},
         gender:{type:String},
         picture: { type:String},
+        description: {type: String}
     }
 
 });
