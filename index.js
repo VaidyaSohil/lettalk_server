@@ -31,7 +31,42 @@ app.use('/',router) //using the router page through express
 
 const {addUser, getUser, getUserInRoom, removeUser} = require('./db/user');
 
+function setOnline(){
+    console.log("Call set online 5 seconds")
+    // if date - last seen > 10 minutes , set isOnline equals to false
+    let isUserOnline = []
+    User.find({},function(err,result){
+        if(err) {console.log(err)}
+        else if (result.length !== 0){
+            result.map(res=>{
+                if(typeof res.lastSeen !== "undefined") {
+                    let dif = Date.now() - res.lastSeen
 
+                    dif = Math.round((dif / 1000) / 60)
+
+                    if (dif > 10) {
+                        isUserOnline.push({email: res.email, isOnline: false})
+                    }
+                }
+                else{
+                    isUserOnline.push({email: res.email, isOnline: false})
+                }
+            })
+        }
+    }).then(()=>{
+        isUserOnline.map(res=>{
+                User.findOneAndUpdate({email:res.email},{isOnline:false},{new:true},function(err,result){
+                })
+            })
+    })
+}
+
+setOnline()
+
+setInterval(function(){
+    setOnline()
+    /// call your function here
+}, 6000);
 
 
 router.post('/login',function (req,res){
@@ -154,6 +189,8 @@ router.route('/userProfile').get(authJwtController.isAuthenticated,function(req,
 
 
 router.route('/rating').get(authJwtController.isAuthenticated , function(req,res) {
+
+    console.log("Check rating")
     if(typeof req.query.email === "undefined"){
         return res.status(400).send({success: false});
     }
@@ -454,10 +491,37 @@ router.get('/roomAvailable',function(req,res){
 })
 
 
+router.post('/checkin',function(req,res){
+    console.log("cHECKIN")
+    if( typeof (req.body.email) == "undefined" || req.body.email == null){
+        res.status(400).send({success: false})
+    }
+    else if( typeof (req.body.email) !== "undefined" && req.body.email !== null ){
+
+            User.findOneAndUpdate({email: req.body.email}, {
+                isOnline: true,
+                lastSeen: Date.now()
+            }, function (err, docs) {
+                if (err) {
+                    console.log(err)
+                    res.status(500).send({success: false, msg: "Service currently unavailable"})
+                } else if(docs){
+
+                        res.status(200).send({success: true, msg: docs.email  + " " +docs.lastSeen})
+
+                }
+            })
+        }
+})
+
+
 
 router.get('/online',function(req,res){
-
-    User.find({isOnline:true},function(err,docs){
+    // date.now - lastseen = 5 minutes
+    //Run this script every 5 minutes
+    // Another people will send check in
+    console.log("check online")
+    User.find({ isOnline: true},function(err,docs){
         if(err) {
             console.log(err)
             res.status(500).send({success: false, msg: "Service currently unavailable"})

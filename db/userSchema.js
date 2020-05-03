@@ -9,6 +9,7 @@ var userSchema = new Schema({
     name: {type: String, required: true},
     password: {type: String, required: true},
     isOnline: {type:Boolean , default: false},
+    lastSeen: {type : Date},
     userProfile:{
         alias: {type: String},
         age: { type:Number},
@@ -16,7 +17,8 @@ var userSchema = new Schema({
         gender:{type:String},
         picture: { type:String},
         description: {type: String}
-    }
+    },
+    created: {type: Date}
 
 });
 
