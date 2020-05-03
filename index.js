@@ -384,16 +384,23 @@ router.route('/room').get(authJwtController.isAuthenticated, function(req,res){
 
 
 
-router.route('/room').delete(authJwtController.isAuthenticated,function(req,res){
+router.route('/room').post(authJwtController.isAuthenticated,function(req,res){
     //Looking for email address for now, but will do token for security
     //Looking if token match this room then delete for both user
     // Say sorry for both user, I'm out of service
+    console.log("Exit here",req.body.email)
+    waitingSchema.deleteMany({email:req.body.email},function (err,result){
+        if(err) {
+            console.log(err)
+        }
+
+    })
     waitingSchema.deleteMany({roomId: req.body.roomId}, function (err){
         if(err) {
             console.log(err)
-            res.status(500).send({success: false, msg: "Service unavailable"})
         }
     })
+
     res.status(200).send({success: true, msg: "Successfully delete room"})
 })
 
