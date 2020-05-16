@@ -633,10 +633,10 @@ io.on('connection', (socket)=>{
   socket.on('sendMessage', (data) => {
     console.log("get message",data)
     if(typeof data !== "undefined") {
-      const user = getUser(data.name);    //get user who sent that message by using the socket.id of that user
+      const user = getUser(socket.id);    //get user who sent that message by using the socket.id of that user
       console.log("Send message name",user)
       if(typeof user !== "undefined")
-        console.log("Send message to front end",data.message)
+        console.log("Send message to front end",data.message, user.room)
       io.to(user.room).emit('message', {user: user.name, text: data.message}); //display to the front end
 
     }

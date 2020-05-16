@@ -27,9 +27,9 @@ const addUser = ( id, name, room) => { //function to add users if unique and ret
 }
 
 //function to get user if the id passed matches the id in the users list
-function getUser(name){
-    console.log("Name",name)
-    let index = users_room.findIndex(x => x.name === name);
+function getUser(socketid){
+    console.log("Name",socketid)
+    let index = users_room.findIndex(x => x.id === socketid);
     if(index !== -1){
         console.log(users_room[index])
         return users_room[index]
