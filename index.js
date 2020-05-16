@@ -92,7 +92,7 @@ router.post('/login',function (req,res){
         if (err) {
           console.log(err)
         } else if (result) {
-          console.log(result)
+
           var userToken = {id: result._id, email: result.email}
           var token = jwt.sign(userToken, process.env.SECRET_KEY);
           res.status(200).send({
@@ -164,7 +164,7 @@ router.route('/logout').post(authJwtController.isAuthenticated,function(req, res
 
     }
     else if(result){
-      console.log(result)
+
     }
 
   })
@@ -187,7 +187,7 @@ router.get('/checkValidEmail',function(req,res) {
 router.post('/register',function(req,res){
   //req.body.email, name,password,alias,age,hobby
   //Looking to see if email already in database
-  console.log(req.body)
+
   if(typeof req.body.email === "undefined" || typeof req.body.password === "undefined" || typeof  req.body.name === "undefined"){
     res.status(400).send({success: false, msg: "Error"})
   }
@@ -229,13 +229,12 @@ router.post('/register',function(req,res){
 
 router.route('/userProfile').get(authJwtController.isAuthenticated,function(req, res){
 
-  console.log("email here",req.query.email)
+
 
   User.findOne({email:req.query.email},function(err,obj) {
     if(err) {console.log(err)
       return res.status(400).send({success: false, msg: "Bad request"})}
     else if(obj){
-      console.log(obj.userProfile)
       return res.status(200).send({success: true, msg: obj.userProfile})
     }
     else{
@@ -249,7 +248,7 @@ router.route('/userProfile').get(authJwtController.isAuthenticated,function(req,
 
 router.route('/rating').get(authJwtController.isAuthenticated , function(req,res) {
 
-  console.log("Check rating")
+
   if(typeof req.query.email === "undefined"){
     return res.status(400).send({success: false});
   }
@@ -336,7 +335,7 @@ router.route('/userProfile').post(authJwtController.isAuthenticated,function(req
     description: req.body.description
   }
 
-  console.log(USER_PROFILE)
+
   if(req.body.email === null){
     res.status(400).send({success: false, msg: "Bad request"})
   }
@@ -348,14 +347,13 @@ router.route('/userProfile').post(authJwtController.isAuthenticated,function(req
         res.status(400).send({success: false, msg: "Error"})
       } else if (obj) {
         //Modify it only
-        console.log("It here")
+
         User.findOneAndUpdate({email: req.body.email}, {userProfile: USER_PROFILE}, {new: true}, function (err, obj) {
           if (err) console.log(err)
         })
         res.status(200).send({success: true, msg: req.body.email + " is modified to our database"})
       } else {
-        console.log("New user")
-        console.log(req.body.email)
+
         var user = new User({email: req.body.email, userProfile: USER_PROFILE})
         user.save(function (err, obj) {
           if (err) {
@@ -513,7 +511,7 @@ router.route('/room').post(authJwtController.isAuthenticated,function(req,res){
   //Looking for email address for now, but will do token for security
   //Looking if token match this room then delete for both user
   // Say sorry for both user, I'm out of service
-  console.log("Exit here",req.body.email)
+
   waitingSchema.deleteMany({email:req.body.email},function (err,result){
     if(err) {
       console.log(err)
@@ -551,7 +549,7 @@ router.get('/roomAvailable',function(req,res){
 
 
 router.post('/checkin',function(req,res){
-  console.log("cHECKIN")
+
   if( typeof (req.body.email) == "undefined" || req.body.email == null){
     res.status(400).send({success: false})
   }
